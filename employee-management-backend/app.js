@@ -1,3 +1,4 @@
+// server.js or app.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -13,7 +14,13 @@ const app = express();
 const prisma = new PrismaClient();
 
 // Middlewares
-app.use(cors());
+const corsOptions = {
+  origin: "http://localhost:3000", // Change this to your frontend's URL
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  credentials: true,
+};
+
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Import routes

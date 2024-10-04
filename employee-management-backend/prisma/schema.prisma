@@ -14,16 +14,40 @@ model User {
   employees Employee[]
 }
 
+enum Gender {
+  M
+  F
+}
+
+enum Course {
+  MCA
+  BCA
+  BSC
+}
+
+enum Designation {
+  HR
+  Manager
+  Sales
+}
+
+// It's common to use 'Active' and 'Inactive' for clarity
+enum Active {
+  Active
+  Deactive // Changed 'deactive' to 'DEactive'
+}
+
 model Employee {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  id          String      @id @default(auto()) @map("_id") @db.ObjectId
   name        String
-  email       String   @unique
+  email       String      @unique
   mobile      String
-  designation String
-  gender      String
-  course      String[]
-  imageUrl    String?
-  createdAt   DateTime @default(now())
-  userId      String   @db.ObjectId
-  user        User     @relation(fields: [userId], references: [id])
+  designation Designation
+  gender      Gender
+  course      Course[] // Use the Course enum array
+  imageUrl    String? // Optional image URL
+  active      Active      @default(Active) // Change to enum for consistency
+  createdAt   DateTime    @default(now())
+  userId      String      @db.ObjectId
+  user        User        @relation(fields: [userId], references: [id]) // Relation to User
 }

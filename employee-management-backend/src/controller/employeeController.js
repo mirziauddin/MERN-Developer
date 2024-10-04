@@ -12,9 +12,9 @@ const employeeSchema = Joi.object({
     .pattern(/^[0-9]+$/)
     .length(10)
     .required(), // Assuming a 10-digit mobile number
-  designation: Joi.string().required(),
-  gender: Joi.string().valid("Male", "Female", "Other").required(),
-  course: Joi.string().required(),
+  designation: Joi.string().valid("HR", "Manager", "Sales").required(), // Match the enum in Prisma
+  gender: Joi.string().valid("M", "F").required(), // Match the enum in Prisma (M/F)
+  course: Joi.array().items(Joi.string().valid("MCA", "BCA", "BSC")).required(), // Array of enum values
   userId: Joi.string().required(),
 });
 
@@ -52,9 +52,11 @@ const createEmployee = async (req, res) => {
         name: req.body.name,
         email: req.body.email,
         mobile: req.body.mobile,
-        designation: req.body.designation,
-        gender: req.body.gender,
-        course: [req.body.course], // Wrap it in an array
+        designation: req.body.designation, // Ensure this comes from the enum (HR/Manager/Sales)
+        gender: req.body.gender, // Ensure this comes from the enum (M/F)
+        course: Array.isArray(req.body.course)
+          ? req.body.course
+          : [req.body.course], // Ensure it's an array of courses (MCA/BCA/BSC)
         imageUrl,
         userId: req.body.userId,
       },
@@ -68,11 +70,27 @@ const createEmployee = async (req, res) => {
 };
 
 // Get all employees
+// Get all employees
 const getAllEmployees = async (req, res) => {
   try {
-    const employees = await prisma.employee.findMany();
+    const employees = await prisma.employee.findMany({
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        mobile: true,
+        designation: true, // Enum Designation
+        gender: true, // Enum Gender
+        course: true, // Enum array Course[]
+        imageUrl: true,
+        createdAt: true,
+        active: true,
+        userId: true,
+      },
+    });
     res.json(employees);
   } catch (error) {
+    console.error("Error fetching employees:", error);
     res.status(500).json({ error: error.message });
   }
 };
@@ -96,7 +114,6 @@ const getEmployeeById = async (req, res) => {
   }
 };
 
-// Update employee
 const updateEmployee = async (req, res) => {
   // Validate request body
   const { error } = employeeSchema.validate(req.body);
@@ -135,18 +152,73 @@ const updateEmployee = async (req, res) => {
         name: req.body.name,
         email: req.body.email,
         mobile: req.body.mobile,
-        designation: req.body.designation,
-        gender: req.body.gender,
-        course: [req.body.course],
+        designation: req.body.designation, // Ensure this is one of the Designation enum values
+        gender: req.body.gender, // Ensure this is one of the Gender enum values
+        course: req.body.course, // This should be an array of Course enum values4
         imageUrl,
       },
     });
 
     res.json(updatedEmployee);
   } catch (error) {
+    console.error("Error updating employee data:", error);
     res.status(400).json({ error: error.message });
   }
 };
+
+// Delete employee by ID
+const deleteEmployeeById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Check if the employee exists
+    const existingEmployee = await prisma.employee.findUnique({
+      where: { id },
+    });
+
+    if (!existingEmployee) {
+      return res.status(404).json({ error: "Employee not found." });
+    }
+
+    // Delete the employee
+    await prisma.employee.delete({
+      where: { id },
+    });
+
+    res.status(204).send(); // No content response
+  } catch (error) {
+    console.error("Error deleting employee:", error);
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const updateActiveStatus = async (req, res) => {
+  const { id } = req.params; // Get the employee ID from request parameters
+  const { active } = req.body; // Get the active status from request body
+
+  // Validate the input
+  if (!["Active", "Deactive"].includes(active)) {
+    return res.status(400).json({
+      error: 'Invalid active status. Must be "Active" or "Deactive".',
+    });
+  }
+
+  try {
+    // Update the employee's active status
+    const updatedEmployee = await prisma.employee.update({
+      where: { id: id }, // Find employee by ID
+      data: { active }, // Update the active status
+    });
+
+    // Return the updated employee
+    return res.json(updatedEmployee);
+  } catch (error) {
+    console.error("Error updating active status:", error);
+    return res.status(500).json({ error: "Unable to update active status." });
+  }
+};
+
+// Route setup
 
 // Export the functions
 module.exports = {
@@ -154,4 +226,6 @@ module.exports = {
   getAllEmployees,
   getEmployeeById, // Export the new function
   updateEmployee,
+  deleteEmployeeById,
+  updateActiveStatus,
 };
